@@ -1,6 +1,10 @@
 import PySimpleGUI as sg
+import pandas as pd
 import random
+import time
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 #sg.theme('BlueMono')
 sg.theme('LightPurple')
@@ -43,6 +47,8 @@ def crear_matriz_automática(tamaño, Matriz):
             
     return Matriz
 
+#Multiplicación Tradicional
+
 def multiplicacion_tradicional(MatrizA,MatrizB):
     MatrizC =[]
     for i in range(tamaño):
@@ -55,49 +61,84 @@ def multiplicacion_tradicional(MatrizA,MatrizB):
 
     return MatrizC
 
-def mostrar_matrices(matriz1, matriz2):
-    #Size(cango,altura)
-    layout = [
-        [sg.Text('Matriz A', size=(12, 1), justification='center'), sg.Text('Matriz B', size=(15, 1), justification='center')],
+#Método Strassen
+def strassen_multiply(A, B):
+    # ... (unchanged)
+    def matrix_add(A, B):
+     """Suma de matrices"""
+    return [
+        [A[i][j] + B[i][j] for j in range(len(A[i]))]
+        for i in range(len(A))
     ]
 
-    # Agregar filas de ambas matrices
-    for row1, row2 in zip(matriz1, matriz2):
-        layout.append([sg.Text(str(row1), size=(15, 1)), sg.Text(str(row2), size=(15, 1))])
 
-    layout.append([sg.Button('Continuar')])
-
-    window = sg.Window('Matrices en PySimpleGUI', layout)
-    while True:
-         event, values = window.read()
-         if event == sg.WINDOW_CLOSED or event == 'Continuar':
-             sg.Popup('Multipliquemos!')
-             break
-
-    window.close()
-
-def mostrar_resultados(MatrizA,MatrizB):
-    #Size(cango,altura)
-    layout = [
-        [sg.Text('Matriz Resultante', size=(12, 1), justification='center')],
+def matrix_subtract(A, B):
+    """Resta de matrices"""
+    return [
+        [A[i][j] - B[i][j] for j in range(len(A[i]))]
+        for i in range(len(A))
     ]
 
-    MatrizC=multiplicacion_tradicional(MatrizA,MatrizB)
+def matrix_blocks(matrix):
+    """Divide una matriz en bloques más pequeños"""
+    n = len(matrix) // 2
+    a11 = [row[:n] for row in matrix[:n]]
+    a12 = [row[n:] for row in matrix[:n]]
+    a21 = [row[:n] for row in matrix[n:]]
+    a22 = [row[n:] for row in matrix[n:]]
+    return a11, a12, a21, a22
 
-    # Agregar filas de ambas matrices
-    for row1 in zip(MatrizC):
-        layout.append([sg.Text(str(row1), size=(15, 1))])
+def matrix_combine(a11, a12, a21, a22):
+    """Combina bloques de matriz en una matriz completa"""
+    n = len(a11)
+    result = []
+    for i in range(n):
+        result.append(a11[i] + a12[i])
+    for i in range(n):
+        result.append(a21[i] + a22[i])
+    return result
 
-    layout.append([sg.Button('Cerrar')])
 
-    window = sg.Window('Matrices en PySimpleGUI', layout)
-    while True:
-         event, values = window.read()
-         if event == sg.WINDOW_CLOSED or event == 'Cerrar':
-             sg.Popup('Vuelve Pronto!')
-             break
+def mostrar_resultados_guardar_xlsx(MatrizA, MatrizB):
 
-    window.close()
+    # Medir el tiempo de ejecución de la multiplicación tradicional
+    start_time_tradicional = time.time()
+    MatrizC = multiplicacion_tradicional(MatrizA, MatrizB)
+    elapsed_time_tradicional = time.time() - start_time_tradicional
+
+    # Medir el tiempo de ejecución de la multiplicación Strassen
+    start_time_strassen = time.time()
+    MatrizD = strassen_multiply(MatrizA, MatrizB)
+    elapsed_time_strassen = time.time() - start_time_strassen
+
+    # Crear DataFrames de pandas para las matrices
+    df_matriz_a = pd.DataFrame(MatrizA, columns=[f'A_{i+1}' for i in range(len(MatrizA[0]))])
+    df_matriz_b = pd.DataFrame(MatrizB, columns=[f'B_{i+1}' for i in range(len(MatrizB[0]))])
+    df_matriz_c = pd.DataFrame(MatrizC, columns=[f'C_{i+1}' for i in range(len(MatrizC[0]))])
+    #df_matriz_d = pd.DataFrame(MatrizD, columns=[f'D_{i+1}' for i in range(len(MatrizD[0]))])
+
+    # Guardar los DataFrames en un archivo Excel
+    with pd.ExcelWriter('resultados_matrices.xlsx', engine='xlsxwriter') as writer:
+        df_matriz_a.to_excel(writer, sheet_name='Matriz A', index=False)
+        df_matriz_b.to_excel(writer, sheet_name='Matriz B', index=False)
+        df_matriz_c.to_excel(writer, sheet_name='Resultado', index=False)
+
+    sg.Popup(f'Tiempo Tradicional: {elapsed_time_tradicional:.6f} segundos\n'
+             f'Tiempo Strassen: {elapsed_time_strassen:.6f} segundos\n'
+             '\nResultados guardados en "resultados_matrices.xlsx"')
+
+    # Generar gráfica de barras con los tiempos
+    labels = ['Multiplicación Tradicional', 'Multiplicación Strassen']
+    times = [elapsed_time_tradicional, elapsed_time_strassen]
+
+    plt.plot(labels, times, marker='o', linestyle='-', color='b')
+    plt.ylabel('Tiempo (segundos)')
+    plt.title('Comparación de Tiempos de Ejecución')
+
+    fig_manager = plt.get_current_fig_manager()
+    fig_manager.resize(800, 600)
+
+    plt.show()
 
 
 #menú principal
@@ -115,7 +156,8 @@ layout = [
     [sg.Button('Continuar'), sg.Button('Salir')]
 ]
 
-window = sg.Window('Multiplicación de Matrices', layout, margins=(10, 10))
+window = sg.Window('Multiplicación de Matrices', layout, margins=(10, 10), finalize=True)
+window.set_min_size((100, 200))
 
 while True:
     event, values = window.read()
@@ -136,14 +178,17 @@ while True:
         if opcion == 1:
             MatrizA=crear_matriz_manual(tamaño)
             MatrizB=crear_matriz_manual(tamaño)
-            mostrar_matrices(MatrizA, MatrizB)
-            mostrar_resultados(MatrizA,MatrizB)
+            # mostrar_matrices(MatrizA, MatrizB)
+            # mostrar_resultados(MatrizA,MatrizB)
+            mostrar_resultados_guardar_xlsx(MatrizA, MatrizB)
+            
 
         elif  opcion == 2:
             MatrizA=crear_matriz_automática(tamaño,MatrizA)
             MatrizB=crear_matriz_automática(tamaño,MatrizB)
-            mostrar_matrices(MatrizA, MatrizB)
-            mostrar_resultados(MatrizA,MatrizB)
+            # mostrar_matrices(MatrizA, MatrizB)
+            # mostrar_resultados(MatrizA,MatrizB)
+            mostrar_resultados_guardar_xlsx(MatrizA, MatrizB)
 
         else:
             sg.Popup('Opción Incorrecta')
