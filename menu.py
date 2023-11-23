@@ -1,20 +1,22 @@
+#Importar librerias
 import PySimpleGUI as sg
 import pandas as pd
 import random
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 #sg.theme('BlueMono')
 sg.theme('LightPurple')
 
+#Crear la matriz de manera manual
 def crear_matriz_manual(tamaño):
     matriz = []
     layout = [
          [sg.Text('Ingresa los valores de la matriz a crear', justification='center')],
     ]
 
+    #Recibir los datos a través de interfaz
     for i in range(tamaño):
         row = []
         for j in range(tamaño):
@@ -31,7 +33,8 @@ def crear_matriz_manual(tamaño):
             break
         elif event == 'Aceptar':
             try:
-                matriz = [[float(values[f'input_{i}_{j}']) for j in range(tamaño)] for i in range(tamaño)]
+                #Pedir valores de la matriz 
+                matriz = [[int(values[f'input_{i}_{j}']) for j in range(tamaño)] for i in range(tamaño)]
                 break
             except ValueError:
                 sg.popup_error('Ingresa valores numéricos en todas las celdas')
@@ -40,10 +43,11 @@ def crear_matriz_manual(tamaño):
 
     return matriz
 
+#Recibe valores de -100 a 100 para la creación de la matriz
 def crear_matriz_automática(tamaño, Matriz):
-    for Filas in range(tamaño): #0 -> 2 
-        for Columnas in range(tamaño): # -> 3
-            Matriz[Filas][Columnas]=random.randint(-10, 10)
+    for Filas in range(tamaño): 
+        for Columnas in range(tamaño): 
+            Matriz[Filas][Columnas]=random.randint(-100, 100)
             
     return Matriz
 
@@ -62,41 +66,54 @@ def multiplicacion_tradicional(MatrizA,MatrizB):
     return MatrizC
 
 #Método Strassen
-def strassen_multiply(A, B):
-    # ... (unchanged)
-    def matrix_add(A, B):
-     """Suma de matrices"""
-    return [
-        [A[i][j] + B[i][j] for j in range(len(A[i]))]
-        for i in range(len(A))
-    ]
+#Solo funciona para matrices que tienen por tamaño una potencia de 2
+# def strassen(A,B):
+#     A = np.array(A)
+#     B = np.array(B)
+#     n=len(A)
 
+#     if n==1:
+#         return A*B
+#     else:
+#         a11=A[:n//2,:n//2]
+#         a12=A[:n//2,n//2:]
+#         a21=A[n//2:,:n//2]
+#         a22=A[n//2:,n//2:]
+#         b11=B[:n//2,:n//2]
+#         b12=B[:n//2,n//2:]
+#         b21=B[n//2:,:n//2]
+#         b22=B[n//2:,n//2:]
 
-def matrix_subtract(A, B):
-    """Resta de matrices"""
-    return [
-        [A[i][j] - B[i][j] for j in range(len(A[i]))]
-        for i in range(len(A))
-    ]
+#         m1=strassen(a11+a22,b11+b22)
+#         m2=strassen(a21+a22,b11)
+#         m3=strassen(a11,b12-b22)
+#         m4=strassen(a22,b21-b11)
+#         m5=strassen(a11+a12,b22)
+#         m6=strassen(a21-a11,b11+b12)
+#         m7=strassen(a12-a22,b21+b22)
 
-def matrix_blocks(matrix):
-    """Divide una matriz en bloques más pequeños"""
-    n = len(matrix) // 2
-    a11 = [row[:n] for row in matrix[:n]]
-    a12 = [row[n:] for row in matrix[:n]]
-    a21 = [row[:n] for row in matrix[n:]]
-    a22 = [row[n:] for row in matrix[n:]]
-    return a11, a12, a21, a22
+#         c11=m1+m4-m5+m7
+#         c12=m3+m5
+#         c21=m2+m4
+#         c22=m1-m2+m3+m6
 
-def matrix_combine(a11, a12, a21, a22):
-    """Combina bloques de matriz en una matriz completa"""
-    n = len(a11)
-    result = []
-    for i in range(n):
-        result.append(a11[i] + a12[i])
-    for i in range(n):
-        result.append(a21[i] + a22[i])
-    return result
+#         c=np.zeros((n,n))
+#         c[:n//2,:n//2]=c11
+#         c[:n//2,n//2:]=c12
+#         c[n//2:,:n//2]=c21
+#         c[n//2:,n//2:]=c11
+
+#         return c
+
+def multiplicacion_eficiente(matriz_a, matriz_b):
+    #for _ in range(n), el guion bajo (_) se utiliza como una convención para indicar que el valor de la variable no se va a utilizar en el cuerpo del bucle.
+    resultado = [[0] * len(matriz_b[0]) for _ in range(len(matriz_a))]
+
+    for i in range(len(matriz_a)):
+        for j in range(len(matriz_b[0])):
+            resultado[i][j] = sum(matriz_a[i][k] * matriz_b[k][j] for k in range(len(matriz_b)))
+
+    return resultado
 
 
 def mostrar_resultados_guardar_xlsx(MatrizA, MatrizB):
@@ -108,27 +125,28 @@ def mostrar_resultados_guardar_xlsx(MatrizA, MatrizB):
 
     # Medir el tiempo de ejecución de la multiplicación Strassen
     start_time_strassen = time.time()
-    MatrizD = strassen_multiply(MatrizA, MatrizB)
+    MatrizD = multiplicacion_eficiente(MatrizA, MatrizB)
     elapsed_time_strassen = time.time() - start_time_strassen
 
     # Crear DataFrames de pandas para las matrices
     df_matriz_a = pd.DataFrame(MatrizA, columns=[f'A_{i+1}' for i in range(len(MatrizA[0]))])
     df_matriz_b = pd.DataFrame(MatrizB, columns=[f'B_{i+1}' for i in range(len(MatrizB[0]))])
     df_matriz_c = pd.DataFrame(MatrizC, columns=[f'C_{i+1}' for i in range(len(MatrizC[0]))])
-    #df_matriz_d = pd.DataFrame(MatrizD, columns=[f'D_{i+1}' for i in range(len(MatrizD[0]))])
+    df_matriz_d = pd.DataFrame(MatrizD, columns=[f'D_{i+1}' for i in range(len(MatrizD[0]))])
 
     # Guardar los DataFrames en un archivo Excel
     with pd.ExcelWriter('resultados_matrices.xlsx', engine='xlsxwriter') as writer:
         df_matriz_a.to_excel(writer, sheet_name='Matriz A', index=False)
         df_matriz_b.to_excel(writer, sheet_name='Matriz B', index=False)
-        df_matriz_c.to_excel(writer, sheet_name='Resultado', index=False)
+        df_matriz_c.to_excel(writer, sheet_name='Resultado Tradicional', index=False)
+        df_matriz_d.to_excel(writer, sheet_name='Resultado Eficiente', index=False)
 
     sg.Popup(f'Tiempo Tradicional: {elapsed_time_tradicional:.6f} segundos\n'
-             f'Tiempo Strassen: {elapsed_time_strassen:.6f} segundos\n'
+             f'Tiempo Eficiente: {elapsed_time_strassen:.6f} segundos\n'
              '\nResultados guardados en "resultados_matrices.xlsx"')
 
     # Generar gráfica de barras con los tiempos
-    labels = ['Multiplicación Tradicional', 'Multiplicación Strassen']
+    labels = ['Multiplicación Tradicional', 'Multiplicación Eficiente']
     times = [elapsed_time_tradicional, elapsed_time_strassen]
 
     plt.plot(labels, times, marker='o', linestyle='-', color='b')
@@ -178,16 +196,12 @@ while True:
         if opcion == 1:
             MatrizA=crear_matriz_manual(tamaño)
             MatrizB=crear_matriz_manual(tamaño)
-            # mostrar_matrices(MatrizA, MatrizB)
-            # mostrar_resultados(MatrizA,MatrizB)
             mostrar_resultados_guardar_xlsx(MatrizA, MatrizB)
             
 
         elif  opcion == 2:
             MatrizA=crear_matriz_automática(tamaño,MatrizA)
             MatrizB=crear_matriz_automática(tamaño,MatrizB)
-            # mostrar_matrices(MatrizA, MatrizB)
-            # mostrar_resultados(MatrizA,MatrizB)
             mostrar_resultados_guardar_xlsx(MatrizA, MatrizB)
 
         else:
